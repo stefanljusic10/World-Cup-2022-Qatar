@@ -91,6 +91,7 @@ const main = () =>{
         // fill groups with results
         for (const currentGroup in allGroups) {
             let teamsInGroup = allGroups[currentGroup]
+            // create new array for every group an fill with match results
             matchesByGroups[currentGroup] = []
             for (let i = 0; i < teamsInGroup.length - 1; i++) {
                 for (let j = i + 1; j < teamsInGroup.length; j++) {
@@ -127,26 +128,27 @@ const main = () =>{
     }
 
     // print matches for each group
-    const groupMatchesByFixture = (group, results, matchIndex) => {
+    const matchesByFixture = (group, results, matchIndex) => {
         const matches = results[group]
         console.log(' ' + group);
         matchOutput(matches, matchIndex)
     }
 
-    // printing match results by fixtures and by groups
+    // connecting previous two functions
+    const allMatchesByFixture = (results, index) => {
+        for (const currentGroup in results) {
+            matchesByFixture(currentGroup, results, index)
+        }
+    }
+
+    // printing match results by fixtures
     const printResultsByGroupsAndFixtures = (groupsResults) => {
-        console.log('\nGROUP RESULTS - FIXTURE 1');
-        for (const currentGroup in groupsResults) {
-            groupMatchesByFixture(currentGroup, groupsResults, 0)
-        }
-        console.log('\nGROUP RESULTS - FIXTURE 2');
-        for (const currentGroup in groupsResults) {
-            groupMatchesByFixture(currentGroup, groupsResults, 2)
-        }
-        console.log('\nGROUP RESULTS - FIXTURE 3');
-        for (const currentGroup in groupsResults) {
-            groupMatchesByFixture(currentGroup, groupsResults, 4)
-        }
+        console.log('\nGROUP RESULTS - FIXTURE 1')
+        allMatchesByFixture(groupsResults, 0)
+        console.log('\nGROUP RESULTS - FIXTURE 2')
+        allMatchesByFixture(groupsResults, 2)
+        console.log('\nGROUP RESULTS - FIXTURE 3')
+        allMatchesByFixture(groupsResults, 4)
     }
 
     // creating statistics for each team for every match after group phase is finished
@@ -238,8 +240,8 @@ const main = () =>{
     // creating tables with full statistics after group phase and sorting teams by required conditions
     const tablesByGroups = (statistics, matches) => {
         const groups = Object.keys(statistics)
-        const totalStats = groups.reduce((group, key) => {
-            const currentGroup = statistics[key]
+        const totalStats = groups.reduce((group, currGroup) => {
+            const currentGroup = statistics[currGroup]
             const grouped = currentGroup.reduce((acc, { name, rank, win, draw, lose, points, GF, GA }) => {
                 acc[name] ??= { name, rank, win: 0, draw: 0, lose: 0, GF: 0, GA: 0, points: 0 }
                 acc[name].win += win
@@ -250,10 +252,10 @@ const main = () =>{
                 acc[name].points += points
                 return acc
             }, {})
-            group[key] = Object.values(grouped)
+            group[currGroup] = Object.values(grouped)
     
             // sorting teams in each group by required conditions
-            group[key].sort((prev, next) => {
+            group[currGroup].sort((prev, next) => {
                 // conditions in variables
                 let morePoints = ( prev.points > next.points )
                 let equalPoints = ( prev.points === next.points )
@@ -273,9 +275,19 @@ const main = () =>{
                 else if (equalPoints && equalGoalDifference && moreGoalsFor){
                     return -1
                 }
-                // else if (equalPoints && equalGoalDifference && equalGoalsFor ){
-                //     return -1
-                // }
+                else if (equalPoints && equalGoalDifference && equalGoalsFor ){
+                    let findPair = matches[currGroup].find(match => {
+                        if((match.teamOne.name === prev.name || match.teamOne.name === next.name)
+                            &&
+                            (match.teamTwo.name === prev.name || match.teamTwo.name === next.name)
+                        ){
+                            return [prev.goals, next.goals]
+                        }
+                    })
+                    if(findPair[0] > findPair[1]){
+                        return -1
+                    }
+                }
                 return 0;
             })
             
@@ -290,14 +302,17 @@ const main = () =>{
         let team = group[i]
         let teamNameAndRank = team.name + ` (${team.rank})`
         let goalDiff = team.GF + ':' + team.GA
+        // print table with fixed spaces for columns
         console.log(`${i+1}. ${teamNameAndRank}` + ' '.repeat(fixSpace(teamNameAndRank, 20)) + `${team.win}  ${team.draw}  ${team.lose}  ${goalDiff}` + ' '.repeat(fixSpace(goalDiff, 6)) + `${team.points}`);
     }
 
     // print groups with statistics
     const printGroups = (tables) => {
         for (const currentGroup in tables) {
+            // print group name
             console.log('\n' + currentGroup);
             for (let i = 0; i < tables[currentGroup].length; i++) {
+                // print every team with total statistics
                 printTable(tables[currentGroup], i)
             }
         }
@@ -311,6 +326,7 @@ const main = () =>{
         // removing teams from groups which finished 3rd and 4th
         // adding group position to teams which finished 1st and 2nd
         for (const currentGroup in tables) {
+            // create new array with teams which finished 1st and 2nd
             let teamsForKnockoutPhase = tables[currentGroup].slice(0, 2)
             let firstTeamDraw = currentGroup.replace('Group ', '') + '1'
             let secondTeamDraw = currentGroup.replace('Group ', '') + '2'
@@ -337,6 +353,7 @@ const main = () =>{
         let unseededRandomTeamIndex
         
         while(teams.seeded.length){
+            // pick random team from unseeded group (finished 2nd in group phase)
             unseededRandomTeamIndex = Math.floor(Math.random() * teams.unseeded.length)
             let seededTeamGroup = teams.seeded[0]?.group
             let unseededTeamGroup = teams.unseeded[unseededRandomTeamIndex]?.group
@@ -346,6 +363,7 @@ const main = () =>{
                     { ...teams.seeded[0], goals: 0 },
                     { ...teams.unseeded[unseededRandomTeamIndex], goals: 0 }
                 ])
+                // remove team from seeded and unseeded group after pair is picked
                 teams.seeded.shift()
                 teams.unseeded.splice(unseededRandomTeamIndex, 1)
             }
@@ -355,7 +373,7 @@ const main = () =>{
     }
 
     // print round number
-    const printRoundNumber = (pairs) => {
+    const printKnockoutRound = (pairs) => {
         let roundNumber = pairs.length / 2
         if(roundNumber > 1){
             console.log(`\n1/${roundNumber} finals`);
@@ -363,7 +381,7 @@ const main = () =>{
         else if(roundNumber === 1){
             console.log('\nFinal');
         }
-        else if(roundNumber === 0.5){
+        else if(roundNumber < 1){
             console.log(`\n!!! WINNER !!!\n  ${pairs[0].name}`);
         }
     }
@@ -382,9 +400,10 @@ const main = () =>{
     // knockout phase games
     const printKnockoutPhaseResults = (pairs) => {
         let winner = []
-        printRoundNumber(pairs)
+        printKnockoutRound(pairs)
 
         while(pairs.length){
+            // first and second element of pairs array are teams playing one agains other i current knockout round
             if(pairs.length === 1) return
             let teamOneRank = pairs[0].rank
             let teamTwoRank = pairs[1].rank
