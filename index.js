@@ -239,23 +239,25 @@ const main = () =>{
 
     // creating tables with full statistics after group phase and sorting teams by required conditions
     const tablesByGroups = (statistics, matches) => {
-        const groups = Object.keys(statistics)
-        const totalStats = groups.reduce((group, currGroup) => {
-            const currentGroup = statistics[currGroup]
-            const grouped = currentGroup.reduce((acc, { name, rank, win, draw, lose, points, GF, GA }) => {
-                acc[name] ??= { name, rank, win: 0, draw: 0, lose: 0, GF: 0, GA: 0, points: 0 }
-                acc[name].win += win
-                acc[name].draw += draw
-                acc[name].lose += lose
-                acc[name].GF += GF
-                acc[name].GA += GA
-                acc[name].points += points
+        const totalStats = {}
+        for(let currGroup in statistics) {
+            const teams = statistics[currGroup]
+            totalStats[currGroup] = teams.reduce((acc, curr) => {
+                let foundTeam = acc.find(team => team.name === curr.name)
+                if( foundTeam ) {
+                    foundTeam.win += curr.win
+                    foundTeam.draw += curr.draw
+                    foundTeam.lose += curr.lose
+                    foundTeam.GF += curr.GF
+                    foundTeam.GA += curr.GA
+                    foundTeam.points += curr.points
+                } else {
+                acc.push( curr )
+                }
                 return acc
-            }, {})
-            group[currGroup] = Object.values(grouped)
-    
-            // sorting teams in each group by required conditions
-            group[currGroup].sort((prev, next) => {
+            }, [])
+
+            totalStats[currGroup].sort((prev, next) => {
                 // conditions in variables
                 let morePoints = ( prev.points > next.points )
                 let equalPoints = ( prev.points === next.points )
@@ -265,7 +267,7 @@ const main = () =>{
                 let equalGoalDifference = ( teamOneGoalDifference === teamTwoGoalDifference )
                 let moreGoalsFor = ( prev.GF > next.GF )
                 let equalGoalsFor = ( prev.GF === next.GF )
-    
+            
                 if (morePoints){
                     return -1
                 }
@@ -283,17 +285,15 @@ const main = () =>{
                         ){
                             return [prev.goals, next.goals]
                         }
-                    })
-                    if(findPair[0] > findPair[1]){
-                        return -1
-                    }
+                        })
+                        if(findPair[0] > findPair[1]){
+                            return -1
+                        }
                 }
                 return 0;
             })
-            
-            return group
-        }, {})
-        
+
+        }
         return totalStats
     }
 
